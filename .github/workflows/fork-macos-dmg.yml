@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - fix/macos-service-launchd-diagnostics
+      - ci/macos-dmg-test
 
 permissions:
   contents: read
