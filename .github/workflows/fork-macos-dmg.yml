@@ -1,0 +1,65 @@
+name: Fork macOS DMG
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/macos-service-launchd-diagnostics
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: short
+  HUSKY: 0
+  NODE_OPTIONS: --max_old_space_size=4096
+
+jobs:
+  build-macos-dmg:
+    name: Build unsigned macOS DMG
+    runs-on: macos-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-apple-darwin
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Add Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Install Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.17.0'
+          cache: pnpm
+
+      - name: Install dependencies and sidecars
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run prebuild ${{ matrix.target }}
+
+      - name: Build unsigned DMG
+        run: |
+          pnpm tauri build --target ${{ matrix.target }} -b dmg --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Clash-Verge-${{ matrix.target }}-dmg
+          path: target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+          archive: false
